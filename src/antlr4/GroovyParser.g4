@@ -34,65 +34,85 @@
 parser grammar GroovyParser;
 
 options {
-    tokenVocab = GroovyLexer;
-    contextSuperClass = GroovyParserRuleContext;
-    superClass = AbstractParser;
+  tokenVocab = GroovyLexer;
+  contextSuperClass = GroovyParserRuleContext;
 }
 
 @header {
-    import java.util.Map;
-    import org.codehaus.groovy.ast.NodeMetaDataHandler;
-    import org.apache.groovy.parser.antlr4.SemanticPredicates;
+  import { ParserRuleContext as BaseParserRuleContext } from "antlr4ts/ParserRuleContext";
+  import { GroovySyntaxError } from "./GroovySyntaxError";
+  import { SemanticPredicates } from "./SemanticPredicates";
+
+  class GroovyParserRuleContext extends BaseParserRuleContext {
+    private metaDataMap: Map<any, any> | null = null;
+
+    public getMetaDataMap(): Map<any, any> | null {
+      return this.metaDataMap;
+    }
+
+    public setMetaDataMap(metaDataMap: Map<any, any>): void {
+      this.metaDataMap = metaDataMap;
+    }
+
+    // from org.codehaus.groovy.ast.NodeMetaDataHandler
+    public getNodeMetaData(key: any): any {
+      const metaDataMap = this.getMetaDataMap();
+      if (metaDataMap === null) {
+        return null;
+      }
+      return metaDataMap.get(key);
+    }
+
+    public copyNodeMetaData(other: GroovyParserRuleContext): void {
+      const otherMetaDataMap = other.getMetaDataMap();
+      if (otherMetaDataMap === null) {
+        return;
+      }
+      let metaDataMap = this.getMetaDataMap() || new Map();
+      otherMetaDataMap.forEach((value, key) => {
+        metaDataMap.set(key, value);
+      });
+      this.setMetaDataMap(metaDataMap);
+    }
+  }
 }
 
 @members {
+  public getSyntaxErrorSource(): number {
+    return GroovySyntaxError.PARSER;
+  }
 
-    public static class GroovyParserRuleContext extends ParserRuleContext implements NodeMetaDataHandler {
-        private Map metaDataMap = null;
+  public getErrorLine() {
+    const token = this._input.LT(-1);
 
-        public GroovyParserRuleContext() {}
-
-        public GroovyParserRuleContext(ParserRuleContext parent, int invokingStateNumber) {
-            super(parent, invokingStateNumber);
-        }
-
-        @Override
-        public Map<?, ?> getMetaDataMap() {
-            return this.metaDataMap;
-        }
-
-        @Override
-        public void setMetaDataMap(Map<?, ?> metaDataMap) {
-            this.metaDataMap = metaDataMap;
-        }
+    if (null === token) {
+      return -1;
     }
 
-    @Override
-    public int getSyntaxErrorSource() {
-        return GroovySyntaxError.PARSER;
+    return token.line;
+  }
+
+  public getErrorColumn(): number {
+    const token = this._input.LT(-1);
+
+    if (null === token) {
+      return -1;
     }
 
-    @Override
-    public int getErrorLine() {
-        Token token = _input.LT(-1);
+    return token.charPositionInLine + 1 + (token.text || '').length;
+  }
 
-        if (null == token) {
-            return -1;
-        }
-
-        return token.getLine();
+  // from SyntaxErrorReportable.java
+  public require(condition: boolean, msg: string, offset: number, toAttachPositionInfo: boolean): void {
+    if (condition) {
+      return;
     }
+    this.throwSyntaxError(msg, offset, toAttachPositionInfo);
+  }
 
-    @Override
-    public int getErrorColumn() {
-        Token token = _input.LT(-1);
-
-        if (null == token) {
-            return -1;
-        }
-
-        return token.getCharPositionInLine() + 1 + token.getText().length();
-    }
+  private throwSyntaxError(msg: string, _offset: number, _toAttachPositionInfo: boolean): void {
+    throw msg;
+  }
 }
 
 // starting point for parsing a groovy file
@@ -206,7 +226,7 @@ typeList
  *  t   0: class; 1: interface; 2: enum; 3: annotation; 4: trait
  */
 classDeclaration
-locals[ int t ]
+locals[ number t ]
     :   (   CLASS { $t = 0; }
         |   INTERFACE { $t = 1; }
         |   ENUM { $t = 2; }
@@ -246,7 +266,7 @@ locals[ int t ]
     ;
 
 // t    see the comment of classDeclaration
-classBody[int t]
+classBody[number t]
     :   LBRACE nls
         (
             /* Only enum can have enum constants */
@@ -266,13 +286,13 @@ enumConstant
     :   annotationsOpt identifier arguments? anonymousInnerClassDeclaration[1]?
     ;
 
-classBodyDeclaration[int t]
+classBodyDeclaration[number t]
     :   SEMI
     |   (STATIC nls)? block
     |   memberDeclaration[$t]
     ;
 
-memberDeclaration[int t]
+memberDeclaration[number t]
     :   methodDeclaration[0, $t]
     |   fieldDeclaration
     |   modifiersOpt classDeclaration
@@ -284,7 +304,7 @@ memberDeclaration[int t]
  *      3: normal method declaration OR abstract method declaration
  *  ct  9: script, other see the comment of classDeclaration
  */
-methodDeclaration[int t, int ct]
+methodDeclaration[number t, number ct]
     :   { 3 == $ct }?
         returnType[$ct] methodName LPAREN rparen (DEFAULT nls elementValue)?
     |
@@ -298,7 +318,7 @@ methodName
     |   stringLiteral
     ;
 
-returnType[int ct]
+returnType[number ct]
     :
         standardType
     |
@@ -576,11 +596,11 @@ blockStatement
     ;
 
 localVariableDeclaration
-    :   { !SemanticPredicates.isInvalidLocalVariableDeclaration(_input) }?
+    :   { !SemanticPredicates.isInvalidLocalVariableDeclaration(this._input) }?
         variableDeclaration[0]
     ;
 
-classifiedModifiers[int t]
+classifiedModifiers[number t]
     :   { 0 == $t }? variableModifiers
     |   { 1 == $t }? modifiers
     ;
@@ -589,7 +609,7 @@ classifiedModifiers[int t]
 /**
  *  t   0: local variable declaration; 1: field declaration
  */
-variableDeclaration[int t]
+variableDeclaration[number t]
 @leftfactor { classifiedModifiers }
     :   classifiedModifiers[$t]
         (   type? variableDeclarators
@@ -676,7 +696,7 @@ statement
     |   localVariableDeclaration                                                                            #localVariableDeclarationStmtAlt
 
     // validate the method in the AstBuilder#visitMethodDeclaration, e.g. method without method body is not allowed
-    |   { !SemanticPredicates.isInvalidMethodDeclaration(_input) }?
+    |   { !SemanticPredicates.isInvalidMethodDeclaration(this._input) }?
         methodDeclaration[3, 9]                                                                             #methodDeclarationStmtAlt
 
     |   statementExpression                                                                                 #expressionStmtAlt
@@ -764,7 +784,7 @@ expressionList[boolean canSpread]
     ;
 
 expressionListElement[boolean canSpread]
-    :   (   MUL { require($canSpread, "spread operator is not allowed here", -1); }
+    :   (   MUL { this.require($canSpread, "spread operator is not allowed here", -1, false); }
         |
         ) expression
     ;
@@ -942,11 +962,11 @@ commandArgument
  *  t   0: primary, 1: namePart, 2: arguments, 3: closureOrLambdaExpression, 4: indexPropertyArgs, 5: namedPropertyArgs,
  *      6: non-static inner class creator
  */
-pathExpression returns [int t]
+pathExpression returns [number t]
     :   primary (pathElement { $t = $pathElement.t; })*
     ;
 
-pathElement returns [int t]
+pathElement returns [number t]
     :   nls
 
         // AT: foo.@bar selects the field (or attribute), not property
@@ -1075,7 +1095,7 @@ mapEntryLabel
 /**
  *  t 0: general creation; 1: non-static inner class creation
  */
-creator[int t]
+creator[number t]
     :   createdName
         (   {0 == $t || 1 == $t}? nls arguments anonymousInnerClassDeclaration[0]?
         |   {0 == $t}?            (annotationsOpt LBRACK expression RBRACK)+ dimsOpt
@@ -1090,7 +1110,7 @@ arrayInitializer
 /**
  *  t   0: anonymous inner class; 1: anonymous enum
  */
-anonymousInnerClassDeclaration[int t]
+anonymousInnerClassDeclaration[number t]
     :   classBody[0]
     ;
 
@@ -1155,7 +1175,7 @@ identifier
     |   VAR
     |
         // if 'static' followed by DOT, we can treat them as identifiers, e.g. static.unused = { -> }
-        { DOT == _input.LT(2).getType() }?
+        { GroovyParser.DOT == this._input.LT(2).type }?
         STATIC
     |   IN
 //    |   DEF
@@ -1229,7 +1249,7 @@ rparen
     :   RPAREN
     |
         // !!!Error Alternative, impact the performance of parsing
-        { require(false, "Missing ')'"); }
+    { this.require(false, "Missing ')'", 0, false); }
     ;
 
 nls

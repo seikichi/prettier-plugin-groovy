@@ -66,4 +66,16 @@ export class SemanticPredicates {
 
     return false;
   }
+
+  public static isInvalidLocalVariableDeclaration(ts: any): boolean {
+    return true;
+  }
+
+  public static isInvalidMethodDeclaration(ts: any): boolean {
+    return true;
+  }
+
+  public static isFollowingArgumentsOrClosure(context: any): boolean {
+    return true;
+  }
 }
