@@ -2,7 +2,13 @@ import { Character } from "./Character";
 import { CharStream } from "antlr4ts/CharStream";
 import { IntStream } from "antlr4ts/IntStream";
 import { TokenStream } from "antlr4ts/TokenStream";
-import { GroovyParser } from "./GroovyParser";
+import {
+  GroovyParser,
+  ExpressionContext,
+  PostfixExprAltContext,
+  PostfixExpressionContext,
+  PathExpressionContext
+} from "./GroovyParser";
 
 export class SemanticPredicates {
   private static readonly NONSPACES_PATTERN = /\S+?/;
@@ -69,9 +75,56 @@ export class SemanticPredicates {
     return false;
   }
 
+  private static readonly MODIFIER_SET = new Set([
+    -999, // ANNOTATION_TYPE,
+    GroovyParser.DEF,
+    GroovyParser.VAR,
+
+    GroovyParser.NATIVE,
+    GroovyParser.SYNCHRONIZED,
+    GroovyParser.TRANSIENT,
+    GroovyParser.VOLATILE,
+
+    GroovyParser.PUBLIC,
+    GroovyParser.PROTECTED,
+    GroovyParser.PRIVATE,
+    GroovyParser.STATIC,
+    GroovyParser.ABSTRACT,
+    GroovyParser.FINAL,
+    GroovyParser.STRICTFP,
+    GroovyParser.DEFAULT,
+  ]);
+
   public static isInvalidLocalVariableDeclaration(ts: TokenStream): boolean {
-    // TODO
-    return false;
+    let index = 2;
+    let tokenType2 = ts.LT(index).type;
+
+    if (GroovyParser.DOT === tokenType2) {
+      let tokeTypeN = tokenType2;
+
+      do {
+        index = index + 2;
+        tokeTypeN = ts.LT(index).type;
+      } while (GroovyParser.DOT === tokeTypeN);
+
+      if (GroovyParser.LT === tokeTypeN || GroovyParser.LBRACK === tokeTypeN) {
+        return false;
+      }
+
+      index = index - 1;
+      tokenType2 = ts.LT(index + 1).type;
+    } else {
+      index = 1;
+    }
+
+    const token = ts.LT(index);
+    const tokenType = token.type;
+    const tokenType3 = ts.LT(index + 2).type;
+    const c = (token.text || '').charAt(0);
+
+    return !(GroovyParser.BuiltInPrimitiveType === tokenType || SemanticPredicates.MODIFIER_SET.has(tokenType))
+      && c === c.toLowerCase()
+      && !(GroovyParser.ASSIGN === tokenType3 || (GroovyParser.LT === tokenType2 || GroovyParser.LBRACK === tokenType2));
   }
 
   public static isInvalidMethodDeclaration(ts: TokenStream): boolean {
@@ -81,8 +134,28 @@ export class SemanticPredicates {
       && GroovyParser.LPAREN === (ts.LT(2).type);
   }
 
-  public static isFollowingArgumentsOrClosure(context: any): boolean {
-    // TODO
+  public static isFollowingArgumentsOrClosure(context: ExpressionContext): boolean {
+    if (context instanceof PostfixExprAltContext) {
+      const peacChildren = context.children || [];
+
+      if (1 === peacChildren.length) {
+        const peacChild = peacChildren[0];
+
+        if (peacChild instanceof PostfixExpressionContext) {
+          const pecChildren = peacChild.children || [];
+
+          if (1 === pecChildren.length) {
+            const pecChild = pecChildren[0];
+
+            if (pecChild instanceof PathExpressionContext) {
+              const pec = pecChild;
+              const t = pec.t;
+              return (2 == t || 3 == t);
+            }
+          }
+        }
+      }
+    }
     return false;
   }
 }
