@@ -40,9 +40,7 @@ options {
   import { Token } from "antlr4ts/Token";
   import { Character } from "./Character";
   import { SemanticPredicates } from "./SemanticPredicates";
-
-  function requireFn(_b: boolean, _s: string, _n: number, __b: boolean) {
-  }
+  import { GroovySyntaxError } from "./GroovySyntaxError";
 
   class Paren {
     private text: string;
@@ -102,8 +100,22 @@ options {
     return super.emit(token);
   }
 
-  // TODO: set Identifier, CapitalizedIdentifier, NullLiteral, ...
-  private static readonly REGEX_CHECK_SET = new Set<number>();
+  private static readonly REGEX_CHECK_SET = new Set<number>([
+    GroovyLexer.Identifier,
+    GroovyLexer.CapitalizedIdentifier,
+    GroovyLexer.NullLiteral,
+    GroovyLexer.BooleanLiteral,
+    GroovyLexer.THIS,
+    GroovyLexer.RPAREN,
+    GroovyLexer.RBRACK,
+    GroovyLexer.RBRACE,
+    GroovyLexer.IntegerLiteral,
+    GroovyLexer.FloatingPointLiteral,
+    GroovyLexer.StringLiteral,
+    GroovyLexer.GStringEnd,
+    GroovyLexer.INC,
+    GroovyLexer.DEC,
+  ]);
 
   private isRegexAllowed(): boolean {
     if (GroovyLexer.REGEX_CHECK_SET.has(this.lastTokenType)) {
@@ -129,13 +141,11 @@ options {
     GroovyLexer.parenStack.push(new Paren(this.text, this.lastTokenType, this.line, this.charPositionInLine));
   }
   private exitParen(): void {
-    const paren: Paren = GroovyLexer.parenStack[GroovyLexer.parenStack.length - 1];
     const text: string = this.text;
+    this.require(GroovyLexer.parenStack.length !== 0, "Too many '" + text + "'", 0, false);
 
-    // TODO
-    // requireFn(null != paren, "Too many '" + text + "'");
-    // requireFn(text.equals(PAREN_MAP.get(paren.getText())),
-    //         "'" + paren.getText() + "'" + new PositionInfo(paren.getLine(), paren.getColumn()) + " can not match '" + text + "'", -1);
+    const paren: Paren = GroovyLexer.parenStack[GroovyLexer.parenStack.length - 1];
+    this.require(text === GroovyLexer.PAREN_MAP.get(paren.getText()), `${paren.getText()} can not match`, -1, false);
 
     GroovyLexer.parenStack.pop();
   }
@@ -162,9 +172,7 @@ options {
   }
 
   public getSyntaxErrorSource(): number {
-    // TODO
-    // return GroovySyntaxError.LEXER;
-    return -1;
+    return GroovySyntaxError.LEXER;
   }
 
   public getErrorLine(): number {
@@ -173,6 +181,18 @@ options {
 
   public getErrorColumn(): number {
     return this.charPositionInLine + 1;
+  }
+
+  // from SyntaxErrorReportable.java
+  public require(condition: boolean, msg: string, offset: number, toAttachPositionInfo: boolean): void {
+    if (condition) {
+      return;
+    }
+    this.throwSyntaxError(msg, offset, toAttachPositionInfo);
+  }
+
+  private throwSyntaxError(msg: string, _offset: number, _toAttachPositionInfo: boolean): void {
+    throw msg;
   }
 }
 
@@ -426,10 +446,10 @@ IntegerLiteral
         |   HexIntegerLiteral
         |   OctalIntegerLiteral
         |   BinaryIntegerLiteral
-        ) (Underscore { requireFn(false, "Number ending with underscores is invalid", -1, true); })?
+        ) (Underscore { this.require(false, "Number ending with underscores is invalid", -1, true); })?
 
     // !!! Error Alternative !!!
-    |   Zero ([0-9] { this.invalidDigitCount++; })+ { requireFn(false, "Invalid octal number", -(this.invalidDigitCount + 1), true); } IntegerTypeSuffix?
+    |   Zero ([0-9] { this.invalidDigitCount++; })+ { this.require(false, "Invalid octal number", -(this.invalidDigitCount + 1), true); } IntegerTypeSuffix?
     ;
 
 fragment
@@ -568,7 +588,7 @@ BinaryDigitOrUnderscore
 FloatingPointLiteral
     :   (   DecimalFloatingPointLiteral
         |   HexadecimalFloatingPointLiteral
-        ) (Underscore { requireFn(false, "Number ending with underscores is invalid", -1, true); })?
+        ) (Underscore { this.require(false, "Number ending with underscores is invalid", -1, true); })?
     ;
 
 fragment
@@ -911,7 +931,7 @@ SL_COMMENT
 // Script-header comments.
 // The very first characters of the file may be "#!".  If so, ignore the first line.
 SH_COMMENT
-    :   '#!' { requireFn(0 == this.tokenIndex, "Shebang comment should appear at the first line", -2, true); } ~[\r\n\uFFFF]* -> skip
+    :   '#!' { this.require(0 == this.tokenIndex, "Shebang comment should appear at the first line", -2, true); } ~[\r\n\uFFFF]* -> skip
     ;
 
 // Unexpected characters will be handled by groovy parser later.
