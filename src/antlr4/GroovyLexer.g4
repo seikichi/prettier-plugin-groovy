@@ -74,6 +74,10 @@ options {
 }
 
 @members {
+  public static reset(): void {
+    GroovyLexer.parenStack.length = 0;
+  }
+
   private tokenIndex = 0;
   private lastTokenType  = 0;
   private invalidDigitCount = 0;

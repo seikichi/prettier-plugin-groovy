@@ -16,6 +16,8 @@ function parse(
   _parsers: { [parserName: string]: Parser },
   _options: ParserOptions
 ): AST {
+  GroovyLexer.reset();
+
   const stream = new ANTLRInputStream(text);
   const lexer = new GroovyLexer(stream);
   const tokens = new CommonTokenStream(lexer);
