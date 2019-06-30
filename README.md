@@ -9,5 +9,5 @@ I use Groovy (Spock) at work and sometimes see code that is not formatted. I got
 
 ## Progress
 
-- [x]: Port Groovy's lexer & parser ([groovy/src/antlr/*.g4](https://github.com/apache/groovy/tree/master/src/antlr)) to JS.
-- [ ]: Write printer function.
+- [x] Port Groovy's lexer & parser ([groovy/src/antlr/*.g4](https://github.com/apache/groovy/tree/master/src/antlr)) to JS ([src/antlr/](src/antlr4)).
+- [ ] Write printer function.
