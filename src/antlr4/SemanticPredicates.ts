@@ -1,6 +1,8 @@
 import { Character } from "./Character";
 import { CharStream } from "antlr4ts/CharStream";
 import { IntStream } from "antlr4ts/IntStream";
+import { TokenStream } from "antlr4ts/TokenStream";
+import { GroovyParser } from "./GroovyParser";
 
 export class SemanticPredicates {
   private static readonly NONSPACES_PATTERN = /\S+?/;
@@ -67,15 +69,20 @@ export class SemanticPredicates {
     return false;
   }
 
-  public static isInvalidLocalVariableDeclaration(ts: any): boolean {
-    return true;
+  public static isInvalidLocalVariableDeclaration(ts: TokenStream): boolean {
+    // TODO
+    return false;
   }
 
-  public static isInvalidMethodDeclaration(ts: any): boolean {
-    return true;
+  public static isInvalidMethodDeclaration(ts: TokenStream): boolean {
+    const tokenType = ts.LT(1).type;
+
+    return (GroovyParser.Identifier === tokenType || GroovyParser.CapitalizedIdentifier === tokenType || GroovyParser.StringLiteral === tokenType)
+      && GroovyParser.LPAREN === (ts.LT(2).type);
   }
 
   public static isFollowingArgumentsOrClosure(context: any): boolean {
-    return true;
+    // TODO
+    return false;
   }
 }

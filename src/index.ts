@@ -9,6 +9,7 @@ import {
 } from "prettier";
 import { ANTLRInputStream, CommonTokenStream } from "antlr4ts";
 import { GroovyLexer } from "./antlr4/GroovyLexer";
+import { GroovyParser } from "./antlr4/GroovyParser";
 
 function parse(
   text: string,
@@ -18,21 +19,8 @@ function parse(
   const stream = new ANTLRInputStream(text);
   const lexer = new GroovyLexer(stream);
   const tokens = new CommonTokenStream(lexer);
-
-  // Debug
-  while (true) {
-    try {
-      tokens.consume();
-    } catch (e) {
-      break;
-    }
-  }
-  console.log();
-  for (const t of tokens.getTokens()) {
-    console.log(`${t.line}: ${t.text}`);
-  }
-
-  return {};
+  const parser = new GroovyParser(tokens);
+  return parser.compilationUnit();
 }
 
 function printGroovy(
