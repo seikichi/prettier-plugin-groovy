@@ -1,0 +1,16 @@
+# JS
+node_modules
+
+# Emacs
+*~
+.*~
+
+# Other
+lib
+tmp
+
+# ANTLR
+*.interp
+*.tokens
+src/antlr4/GroovyLexer.ts
+src/antlr4/GroovyParser.ts
