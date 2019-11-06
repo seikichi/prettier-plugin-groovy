@@ -38,7 +38,7 @@
   },
   "scripts": {
     "build": "run-s build:g4 build:ts",
-    "build:g4": "antlr4ts -no-listener src/antlr4/GroovyLexer.g4 src/antlr4/GroovyParser.g4",
+    "build:g4": "antlr4ts -no-listener -o src/antlr4/ src/antlr4/GroovyLexer.g4 src/antlr4/GroovyParser.g4",
     "build:ts": "cross-env NODE_ENV=production tsc -p .",
     "prettier": "prettier --plugin=. --parser=groovy",
     "test": "jest",
