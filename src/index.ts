@@ -41,8 +41,10 @@ function printGroovy(
   if (node instanceof GroovyParser.CompilationUnitContext) {
     const docs: Doc[] = [];
     (node.children || []).forEach((child, index) => {
-      if (child instanceof GroovyParser.PackageDeclarationContext ||
-          child instanceof GroovyParser.StatementsContext) {
+      if (
+        child instanceof GroovyParser.PackageDeclarationContext ||
+        child instanceof GroovyParser.StatementsContext
+      ) {
         docs.push(path.call(print, "children", index));
       }
     });
@@ -129,22 +131,22 @@ function printGroovy(
 export const languages: SupportLanguage[] = [
   {
     extensions: [".groovy"],
-    name: "GROOVY",
-    parsers: ["groovy-parse"]
+    name: "Groovy",
+    parsers: ["groovy"]
   } as SupportLanguage
 ];
 
 export const parsers: { [parserName: string]: Parser } = {
-  "groovy-parse": {
+  groovy: {
     parse,
-    astFormat: "groovy-ast",
+    astFormat: "groovy",
     locStart: _node => 0,
     locEnd: _node => 0
   }
 };
 
 export const printers: { [astFormat: string]: Printer } = {
-  "groovy-ast": {
+  groovy: {
     print: printGroovy
   }
 };
